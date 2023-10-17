@@ -18,6 +18,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	configlite "git.sequentialread.com/forest/config-lite"
@@ -52,6 +53,7 @@ var config Config
 var appDirectory string
 var scryptParameters ScryptParameters
 var currentChallengesGeneration = map[string]int{}
+var challengesMutex = sync.Mutex{}
 var challenges = map[string]map[string]int{}
 
 func main() {
@@ -273,10 +275,13 @@ func main() {
 			}
 
 			challengeBase64 := base64.StdEncoding.EncodeToString(challengeBytes)
+			challengesMutex.Lock()
 			challenges[token][challengeBase64] = currentChallengesGeneration[token]
+			challengesMutex.Unlock()
 			toReturn[i] = challengeBase64
 		}
 		toRemove := []string{}
+		challengesMutex.Lock()
 		for k, generation := range challenges[token] {
 			if generation+config.DeprecateAfterBatches < currentChallengesGeneration[token] {
 				toRemove = append(toRemove, k)
@@ -285,6 +290,7 @@ func main() {
 		for _, k := range toRemove {
 			delete(challenges[token], k)
 		}
+		challengesMutex.Unlock()
 
 		responseBytes, err := json.Marshal(toReturn)
 		if err != nil {
@@ -307,6 +313,7 @@ func main() {
 		challengeBase64 := requestQuery.Get("challenge")
 		nonceHex := requestQuery.Get("nonce")
 
+		challengesMutex.Lock()
 		_, hasAnyChallenges := challenges[token]
 		hasChallenge := false
 		if hasAnyChallenges {
@@ -320,6 +327,7 @@ func main() {
 		}
 
 		delete(challenges[token], challengeBase64)
+		challengesMutex.Unlock()
 
 		nonceBuffer := make([]byte, 8)
 		bytesWritten, err := hex.Decode(nonceBuffer, []byte(nonceHex))
