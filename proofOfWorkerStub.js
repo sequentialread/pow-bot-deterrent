@@ -7,6 +7,7 @@
 
 let scrypt;
 let scryptPromise;
+let wasm;
 
 let working = false;
 const batchSize = 8;
@@ -125,7 +126,7 @@ onmessage = function(e) {
     }
   };
 
-  if(scrypt) {
+  if(wasm && scrypt) {
     doWork();
   } else {
     scryptPromise.then(() => {

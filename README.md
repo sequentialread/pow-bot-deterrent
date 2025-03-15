@@ -142,7 +142,7 @@ Return type: `text/plain` (error/status messages only)
 Otherwise it returns 404, 400, or 500.
 
 
-#### `GET /static/<filename>`
+#### `GET /pow-bot-deterrent-static/<filename>`
 
 Return type: depends on file
 
@@ -236,7 +236,7 @@ When `pow-bot-deterrent.js` runs, if it finds an element with `data-pow-bot-dete
 
 > 💬 *INFO* the element with the `pow-bot-deterrent` data properties should probably be styled to have a very small font size. When I was designing the css for the bot deterrent element, I made everything scale based on the font size (by using `em`). But because the page I was testing it on had a small font by default, I accidentally made it huge when it is rendered on a default HTML page. So for now you will want to make the font size of the element which contains it fairly small, like `10px` or `11px`. 
 
-#### `window.botBotDeterrentInit`
+#### `window.powBotDeterrentInit`
 
 The bot deterrent event listeners, elements, css, & webworkers **won't be loaded until this function is called**.
 
@@ -248,15 +248,15 @@ For example:
 
 ```
 <script>
-  window.botBotDeterrentInit();
+  window.powBotDeterrentInit();
 </script>
 ```
 
 #### `window.powBotDeterrentReset`
 
-Resets the bot deterrent(s), stops the webworkers, etc. Use this if you have updated the page and you need to call `window.botBotDeterrentInit` again.
+Resets the bot deterrent(s), stops the webworkers, etc. Use this if you have updated the page and you need to call `window.powBotDeterrentInit` again.
 
-#### `window.botBotDeterrentInitDone`
+#### `window.powBotDeterrentInitDone`
 
 A boolean variable that `pow-bot-deterrent.js` uses internally, so it can know if it has already been initialized or not.
 
@@ -296,10 +296,10 @@ function MyComponent({botDeterrentURL, challenge}) {
     // Maybe less clear than the above, but JavaScript heads might enjoy this more:
     // window[uniqueCallback] = setNonce;
 
-    if(window.botBotDeterrentInitDone) {
+    if(window.powBotDeterrentInitDone) {
       window.powBotDeterrentReset();
     }
-    window.botBotDeterrentInit();
+    window.powBotDeterrentInit();
   }, [uniqueCallback]);
 
   return (
@@ -484,7 +484,7 @@ There are two main important parts, the form and the javascript at the bottom:
       document.querySelector("form input[type='submit']").disabled = false;
     };
   </script>
-  <script src="{{ .PowAPIURL }}/static/pow-bot-deterrent.js"></script>
+  <script src="{{ .PowAPIURL }}/pow-bot-deterrent-static/pow-bot-deterrent.js"></script>
 ```
 
 ⚠️ **NOTE** that the element with the `pow-bot-deterrent` data properties is placed **inside a form element**. This is required because the bot deterrent needs to know which input elements it should trigger on. We only want it to trigger when the user actually intends to submit the form; otherwise we are wasting a lot of their CPU cycles for no reason!

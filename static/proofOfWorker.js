@@ -7,6 +7,7 @@
 
 let scrypt;
 let scryptPromise;
+let wasm = undefined;
 
 let working = false;
 const batchSize = 4;
@@ -149,7 +150,6 @@ let wasm_bindgen;
     if (typeof document !== 'undefined' && document.currentScript !== null) {
         script_src = new URL(document.currentScript.src, location.href).toString();
     }
-    let wasm = undefined;
 
     let WASM_VECTOR_LEN = 0;
 
@@ -365,11 +365,11 @@ let wasm_bindgen;
         return __wbg_finalize_init(instance, module);
     }
 
-    wasm_bindgen = Object.assign(__wbg_init, { initSync }, __exports);
+    /pow-bot-deterrent-static/_bindgen = Object.assign(__wbg_init, { initSync }, __exports);
 
 })();
 
 scrypt = wasm_bindgen.scrypt;
-scryptPromise = wasm_bindgen({module_or_path: "/static/scrypt.wasm"});
+scryptPromise = wasm_bindgen({module_or_path: "/pow-bot-deterrent-static/scrypt.wasm"});
 
 

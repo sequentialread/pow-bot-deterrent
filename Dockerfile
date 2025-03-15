@@ -16,6 +16,5 @@ WORKDIR /app
 COPY --from=build /build/pow-bot-deterrent /app/pow-bot-deterrent
 COPY static /app/static
 COPY PoW_Bot_Deterrent_API_Tokens /app/PoW_Bot_Deterrent_API_Tokens
-RUN chmod +x /app/pow-bot-deterrent
 ENTRYPOINT ["/app/pow-bot-deterrent"]
 

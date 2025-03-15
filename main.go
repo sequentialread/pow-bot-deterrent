@@ -14,14 +14,33 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	configlite "git.sequentialread.com/forest/config-lite"
 	errors "git.sequentialread.com/forest/pkg-errors"
 	"golang.org/x/crypto/scrypt"
 )
+
+type Config struct {
+	ListenPort             int    `json:"listen_port"`
+	BatchSize              int    `json:"batch_size"`
+	DeprecateAfterBatches  int    `json:"deprecate_after_batches"`
+	ScryptCPUAndMemoryCost int    `json:"scrypt_cpu_and_memory_cost"`
+	AdminAPIToken          string `json:"admin_api_token"`
+
+	EmailAddress string `json:"email_address"`
+	// port 993 (IMAPS)
+	// port 143 (STARTTLS) [deprecated!]
+	ImapHost       string `json:"imap_host"`
+	ImapPort       int    `json:"imap_port"`
+	ImapEncryption string `json:"imap_encryption"`
+	ImapUsername   string `json:"imap_username"`
+	ImapPassword   string `json:"imap_password"`
+}
 
 // https://en.wikipedia.org/wiki/Scrypt
 type ScryptParameters struct {
@@ -38,6 +57,9 @@ type Challenge struct {
 	DifficultyLevel int    `json:"dl"`
 }
 
+var config Config
+var appDirectory string
+var scryptParameters ScryptParameters
 var currentChallengesGeneration = map[string]int{}
 var challenges = map[string]map[string]int{}
 
@@ -45,51 +67,7 @@ func main() {
 
 	var err error
 
-	batchSize := 1000
-	deprecateAfterBatches := 10
-	portNumber := 2370
-	scryptCPUAndMemoryCost := 16384
-	batchSizeEnv := os.ExpandEnv("$POW_BOT_DETERRENT_BATCH_SIZE")
-	deprecateAfterBatchesEnv := os.ExpandEnv("$POW_BOT_DETERRENT_DEPRECATE_AFTER_BATCHES")
-	portNumberEnv := os.ExpandEnv("$POW_BOT_DETERRENT_LISTEN_PORT")
-	scryptCPUAndMemoryCostEnv := os.ExpandEnv("$POW_BOT_DETERRENT_SCRYPT_CPU_AND_MEMORY_COST")
-	if batchSizeEnv != "" {
-		batchSize, err = strconv.Atoi(batchSizeEnv)
-		if err != nil {
-			panic(errors.Wrapf(err, "can't start the app because the POW_BOT_DETERRENT_BATCH_SIZE '%s' can't be converted to an integer", batchSizeEnv))
-		}
-	}
-	if deprecateAfterBatchesEnv != "" {
-		deprecateAfterBatches, err = strconv.Atoi(deprecateAfterBatchesEnv)
-		if err != nil {
-			panic(errors.Wrapf(err, "can't start the app because the POW_BOT_DETERRENT_DEPRECATE_AFTER_BATCHES '%s' can't be converted to an integer", deprecateAfterBatchesEnv))
-		}
-	}
-	if portNumberEnv != "" {
-		portNumber, err = strconv.Atoi(portNumberEnv)
-		if err != nil {
-			panic(errors.Wrapf(err, "can't start the app because the POW_BOT_DETERRENT_LISTEN_PORT '%s' can't be converted to an integer", portNumberEnv))
-		}
-	}
-	if scryptCPUAndMemoryCostEnv != "" {
-		scryptCPUAndMemoryCost, err = strconv.Atoi(scryptCPUAndMemoryCostEnv)
-		if err != nil {
-			panic(errors.Wrapf(err, "can't start the app because the POW_BOT_DETERRENT_SCRYPT_CPU_AND_MEMORY_COST '%s' can't be converted to an integer", scryptCPUAndMemoryCostEnv))
-		}
-	}
-
-	apiTokensFolder := locateAPITokensFolder()
-	adminAPIToken := os.ExpandEnv("$POW_BOT_DETERRENT_ADMIN_API_TOKEN")
-	if adminAPIToken == "" {
-		panic(errors.New("can't start the app, the POW_BOT_DETERRENT_ADMIN_API_TOKEN environment variable is required"))
-	}
-
-	scryptParameters := ScryptParameters{
-		CPUAndMemoryCost: scryptCPUAndMemoryCost,
-		BlockSize:        8,
-		Paralellization:  1,
-		KeyLength:        16,
-	}
+	apiTokensFolder := readConfiguration()
 
 	requireMethod := func(method string) func(http.ResponseWriter, *http.Request) bool {
 		return func(responseWriter http.ResponseWriter, request *http.Request) bool {
@@ -103,7 +81,7 @@ func main() {
 	}
 
 	requireAdmin := func(responseWriter http.ResponseWriter, request *http.Request) bool {
-		if request.Header.Get("Authorization") != fmt.Sprintf("Bearer %s", adminAPIToken) {
+		if request.Header.Get("Authorization") != fmt.Sprintf("Bearer %s", config.AdminAPIToken) {
 			http.Error(responseWriter, "401 Unauthorized", http.StatusUnauthorized)
 			return true
 		}
@@ -262,8 +240,8 @@ func main() {
 			return true
 		}
 
-		toReturn := make([]string, batchSize)
-		for i := 0; i < batchSize; i++ {
+		toReturn := make([]string, config.BatchSize)
+		for i := 0; i < config.BatchSize; i++ {
 			preimageBytes := make([]byte, 8)
 			_, err := rand.Read(preimageBytes)
 			if err != nil {
@@ -309,7 +287,7 @@ func main() {
 		}
 		toRemove := []string{}
 		for k, generation := range challenges[token] {
-			if generation+deprecateAfterBatches < currentChallengesGeneration[token] {
+			if generation+config.DeprecateAfterBatches < currentChallengesGeneration[token] {
 				toRemove = append(toRemove, k)
 			}
 		}
@@ -417,11 +395,23 @@ func main() {
 		return true
 	})
 
+	http.HandleFunc("/static/captcha.css", func(responseWriter http.ResponseWriter, request *http.Request) {
+		bytez, _ := os.ReadFile("./static/pow-bot-deterrent.css")
+		responseWriter.Header().Set("Content-Type", "text/css")
+		responseWriter.Write(bytez)
+	})
+	http.HandleFunc("/static/captcha.js", func(responseWriter http.ResponseWriter, request *http.Request) {
+		bytez, _ := os.ReadFile("./static/pow-bot-deterrent.js")
+		responseWriter.Header().Set("Content-Type", "application/javascript")
+		responseWriter.Write(bytez)
+	})
+
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
+	http.Handle("/pow-bot-deterrent-static/", http.StripPrefix("/pow-bot-deterrent-static/", http.FileServer(http.Dir("./static/"))))
 
-	log.Printf("💥  PoW! Bot Deterrent server listening on port %d", portNumber)
+	log.Printf("💥  PoW! Bot Deterrent server listening on port %d", config.ListenPort)
 
-	err = http.ListenAndServe(fmt.Sprintf(":%d", portNumber), nil)
+	err = http.ListenAndServe(fmt.Sprintf(":%d", config.ListenPort), nil)
 
 	// if got this far it means server crashed!
 	panic(err)
@@ -488,4 +478,82 @@ func getCurrentExecDir() (dir string, err error) {
 	dir = filepath.Dir(absPath)
 
 	return dir, nil
+}
+
+func readConfiguration() string {
+	apiTokensFolderPath := locateAPITokensFolder()
+	appDirectory = filepath.Dir(apiTokensFolderPath)
+	configJsonPath := filepath.Join(appDirectory, "config.json")
+	err := configlite.ReadConfiguration(configJsonPath, "POW_BOT_DETERRENT", []string{}, reflect.ValueOf(&config))
+	if err != nil {
+		panic(errors.Wrap(err, "ReadConfiguration returned"))
+	}
+
+	errors := []string{}
+	if config.ListenPort == 0 {
+		config.ListenPort = 2370
+	}
+	if config.BatchSize == 0 {
+		config.BatchSize = 1000
+	}
+	if config.DeprecateAfterBatches == 0 {
+		config.DeprecateAfterBatches = 10
+	}
+	if config.ScryptCPUAndMemoryCost == 0 {
+		config.ScryptCPUAndMemoryCost = 16384
+	}
+	if config.AdminAPIToken == "" {
+		errors = append(errors, "the POW_BOT_DETERRENT_ADMIN_API_TOKEN environment variable is required")
+	}
+
+	if config.EmailAddress != "" {
+		if config.ImapHost == "" {
+			config.ImapHost = "localhost"
+		}
+		if config.ImapPort == 0 {
+			config.ImapPort = 993
+		}
+		if config.ImapEncryption == "" {
+			config.ImapEncryption = "SMTPS"
+		}
+		if config.ImapEncryption != "STARTTLS" && config.ImapEncryption != "IMAPS" && config.ImapEncryption != "NONE" {
+			errors = append(errors, fmt.Sprintf("ImapEncryption '%s' must be IMAPS, STARTTLS or NONE", config.ImapEncryption))
+		}
+		if config.ImapUsername == "" {
+			errors = append(errors, "ImapUsername is required")
+		}
+		if config.ImapPassword == "" {
+			errors = append(errors, "ImapPassword is required")
+		}
+	}
+
+	if len(errors) > 0 {
+		log.Fatalln("💥 PoW Bot Deterrent can't start because there are configuration issues:")
+		log.Fatalln(strings.Join(errors, "\n"))
+	}
+
+	scryptParameters = ScryptParameters{
+		CPUAndMemoryCost: config.ScryptCPUAndMemoryCost,
+		BlockSize:        8,
+		Paralellization:  1,
+		KeyLength:        16,
+	}
+
+	log.Println("💥 PoW Bot Deterrent starting up with config:")
+	configToLogBytes, _ := json.MarshalIndent(config, "", "  ")
+	configToLogString := regexp.MustCompile(
+		`("admin_api_token": ")[^"]+(",)`,
+	).ReplaceAllString(
+		string(configToLogBytes),
+		"$1******$2",
+	)
+	configToLogString = regexp.MustCompile(
+		`("imap_password": ")[^"]+(",?)`,
+	).ReplaceAllString(
+		configToLogString,
+		"$1******$2",
+	)
+	log.Println(configToLogString)
+
+	return apiTokensFolderPath
 }

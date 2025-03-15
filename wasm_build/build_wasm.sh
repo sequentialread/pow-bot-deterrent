@@ -46,7 +46,8 @@ echo '
 
 cat ../proofOfWorkerStub.js | tail -n +6  >> ../static/proofOfWorker.js
 
-cat scrypt-wasm/pkg/scrypt_wasm.js >> ../static/proofOfWorker.js
+# wasm was defined at the top of proofOfWorker.js, so don't define it again.
+cat scrypt-wasm/pkg/scrypt_wasm.js  | grep -v 'let wasm = ' >> ../static/proofOfWorker.js
 
 # see: https://rustwasm.github.io/docs/wasm-bindgen/examples/without-a-bundler.html
 echo '

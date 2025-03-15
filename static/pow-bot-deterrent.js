@@ -3,31 +3,27 @@
   const numberOfWebWorkersToCreate = 4;
 
   window.powBotDeterrentReset = () => {
-    window.botBotDeterrentInitDone = false;
+    window.powBotDeterrentInitDone = false;
   };
 
-  window.botBotDeterrentInit = () => {
-    if(window.botBotDeterrentInitDone) {
-      console.error("botBotDeterrentInit was called twice!");
+  const trimSlashes = x => x.replace(/^\/|\/$/g, '');
+
+  window.powBotDeterrentInit = () => {
+    if(window.powBotDeterrentInitDone) {
+      console.error("powBotDeterrentInit was called twice!");
       return
     }
-    window.botBotDeterrentInitDone = true;
+    window.powBotDeterrentInitDone = true;
 
     const challenges = Array.from(document.querySelectorAll("[data-pow-bot-deterrent-challenge]"));
     const challengesMap = {};
-    let url = null;
+    let staticAssetsPath = trimSlashes("/pow-bot-deterrent-static/")
     let proofOfWorker = { postMessage: () => console.error("error: proofOfWorker was never loaded. ") };
 
     challenges.forEach(element => {
   
-      if(!url) {
-        if(!element.dataset.powBotDeterrentUrl) {
-          console.error("error: element with data-pow-bot-deterrent-challenge property is missing the data-pow-bot-deterrent-url property");
-        }
-        url = element.dataset.powBotDeterrentUrl;
-        if(url.endsWith("/")) {
-          url = url.substring(0, url.length-1)
-        }
+      if(element.dataset.powBotDeterrentStaticAssetsPath) {
+        staticAssetsPath = trimSlashes(element.dataset.powBotDeterrentStaticAssetsPath);
       }
 
       if(!element.dataset.powBotDeterrentCallback) {
@@ -62,7 +58,7 @@
         //todo
       }
 
-      let cssIsAlreadyLoaded = document.querySelector(`link[href='${url}/static/pow-bot-deterrent.css']`);
+      let cssIsAlreadyLoaded = document.querySelector(`link[href='/${staticAssetsPath}/pow-bot-deterrent.css']`);
 
       cssIsAlreadyLoaded = cssIsAlreadyLoaded || Array.from(document.styleSheets).some(x => {
         try {
@@ -78,7 +74,7 @@
           "charset": "utf8",
         });
         stylesheet.onload = () => renderProgressInfo(element);
-        stylesheet.setAttribute("href", `${url}/static/pow-bot-deterrent.css`);
+        stylesheet.setAttribute("href", `${staticAssetsPath}/pow-bot-deterrent.css`);
       } else {
         renderProgressInfo(element);
       }
@@ -133,104 +129,88 @@
       //todo
     }
   
-    if(url) {
-
-      // // https://stackoverflow.com/questions/21913673/execute-web-worker-from-different-origin/62914052#62914052
-      // const webWorkerUrlWhichIsProbablyCrossOrigin = `${url}/static/proofOfWorker.js`;
-
-      // const webWorkerPointerDataURL = URL.createObjectURL( 
-      //   new Blob(
-      //     [ `importScripts( "${ webWorkerUrlWhichIsProbablyCrossOrigin }" );` ], 
-      //     { type: "text/javascript" }
-      //   )
-      // );
-
-      // return
-      let webWorkers;
-      webWorkers = [...Array(numberOfWebWorkersToCreate)].map((_, i) => {
-        const webWorker = new Worker('/static/proofOfWorker.js');
-        webWorker.onmessage = function(e) {
-          const challengeState = challengesMap[e.data.challenge]
-          if(!challengeState) {
-            console.error(`error: webworker sent message with unknown challenge '${e.data.challenge}'`);
+    let webWorkers;
+    webWorkers = [...Array(numberOfWebWorkersToCreate)].map((_, i) => {
+      const webWorker = new Worker(`/${staticAssetsPath}/proofOfWorker.js`);
+      webWorker.onmessage = function(e) {
+        const challengeState = challengesMap[e.data.challenge]
+        if(!challengeState) {
+          console.error(`error: webworker sent message with unknown challenge '${e.data.challenge}'`);
+        }
+        if(e.data.type == "progress") {
+          challengeState.difficulty = e.data.difficulty;
+          challengeState.probabilityOfFailurePerAttempt = e.data.probabilityOfFailurePerAttempt;
+          if(!challengeState.smallestHash || challengeState.smallestHash > e.data.smallestHash) {
+            challengeState.smallestHash = e.data.smallestHash;
           }
-          if(e.data.type == "progress") {
-            challengeState.difficulty = e.data.difficulty;
-            challengeState.probabilityOfFailurePerAttempt = e.data.probabilityOfFailurePerAttempt;
-            if(!challengeState.smallestHash || challengeState.smallestHash > e.data.smallestHash) {
-              challengeState.smallestHash = e.data.smallestHash;
-            }
-            challengeState.attempts += e.data.attempts;
-          } else if(e.data.type == "success") {
-            if(!challengeState.done) {
-              challengeState.done = true;
-              clearInterval(challengeState.updateProgressInterval);
-  
-              const element = challengeState.element;
-              const progressBar = element.querySelector(".pow-bot-deterrent-progress-bar");
-              const checkmark = element.querySelector(".pow-checkmark-icon");
-              const gears = element.querySelector(".pow-gears-icon");
-              const bestHashElement = element.querySelector(".pow-bot-deterrent-best-hash");
-              const description = element.querySelector(".pow-bot-deterrent-description");
-              challengeState.smallestHash = e.data.smallestHash;
-              bestHashElement.textContent = getHashProgressText(challengeState);
-              bestHashElement.classList.add("pow-bot-deterrent-best-hash-done");
-              checkmark.style.display = "block";
-              checkmark.style.animationPlayState = "running";
-              gears.style.display = "none";
-              progressBar.style.width = "100%";
-  
-              description.innerHTML = "";
-              createElement(
-                description, 
-                "a", 
-                {"href": "https://en.wikipedia.org/wiki/Proof_of_work"}, 
-                "PoW"
-              );
-              appendFragment(description, " complete, you may continue.");
-              createElement(description, "br");
-              appendFragment(description, "Privacy-respecting anti-spam measure.");
-              
-              webWorkers.forEach(x => x.postMessage({stop: "STOP"}));
-  
-              const callback = getCallbackFromGlobalNamespace(element.dataset.powBotDeterrentCallback);
-              if(!callback) {
-                console.error(`error: data-pow-bot-deterrent-callback '${element.dataset.powBotDeterrentCallback}' `
-                             + "is not defined in the global namespace!");
-              } else {
-                console.log(`firing callback for challenge ${e.data.challenge} w/ nonce ${e.data.nonce}, smallestHash: ${e.data.smallestHash}, difficulty: ${e.data.difficulty}`);
-                callback(e.data.nonce);
-              }
+          challengeState.attempts += e.data.attempts;
+        } else if(e.data.type == "success") {
+          if(!challengeState.done) {
+            challengeState.done = true;
+            clearInterval(challengeState.updateProgressInterval);
+
+            const element = challengeState.element;
+            const progressBar = element.querySelector(".pow-bot-deterrent-progress-bar");
+            const checkmark = element.querySelector(".pow-checkmark-icon");
+            const gears = element.querySelector(".pow-gears-icon");
+            const bestHashElement = element.querySelector(".pow-bot-deterrent-best-hash");
+            const description = element.querySelector(".pow-bot-deterrent-description");
+            challengeState.smallestHash = e.data.smallestHash;
+            bestHashElement.textContent = getHashProgressText(challengeState);
+            bestHashElement.classList.add("pow-bot-deterrent-best-hash-done");
+            checkmark.style.display = "block";
+            checkmark.style.animationPlayState = "running";
+            gears.style.display = "none";
+            progressBar.style.width = "100%";
+
+            description.innerHTML = "";
+            createElement(
+              description, 
+              "a", 
+              {"href": "https://en.wikipedia.org/wiki/Proof_of_work"}, 
+              "PoW"
+            );
+            appendFragment(description, " complete, you may continue.");
+            createElement(description, "br");
+            appendFragment(description, "Privacy-respecting anti-spam measure.");
+            
+            webWorkers.forEach(x => x.postMessage({stop: "STOP"}));
+
+            const callback = getCallbackFromGlobalNamespace(element.dataset.powBotDeterrentCallback);
+            if(!callback) {
+              console.error(`error: data-pow-bot-deterrent-callback '${element.dataset.powBotDeterrentCallback}' `
+                           + "is not defined in the global namespace!");
             } else {
-              console.log("success recieved twice");
+              console.log(`firing callback for challenge ${e.data.challenge} w/ nonce ${e.data.nonce}, smallestHash: ${e.data.smallestHash}, difficulty: ${e.data.difficulty}`);
+              callback(e.data.nonce);
             }
-          } else if(e.data.type == "error") {
-            console.error(`error: webworker errored out: '${e.data.message}'`);
           } else {
-            console.error(`error: webworker sent message with unknown type '${e.data.type}'`);
+            console.log("success recieved twice");
           }
-        };
-        return webWorker;
-      });
-
-      // URL.revokeObjectURL(webWorkerPointerDataURL);
-  
-      proofOfWorker = { 
-        postMessage: arg => webWorkers.forEach((x, i) => {
-          x.postMessage({ ...arg, workerId: i })
-        })
+        } else if(e.data.type == "error") {
+          console.error(`error: webworker errored out: '${e.data.message}'`);
+        } else {
+          console.error(`error: webworker sent message with unknown type '${e.data.type}'`);
+        }
       };
+      return webWorker;
+    });
 
-      window.powBotDeterrentReset = () => {
-        window.botBotDeterrentInitDone = false;
-        webWorkers.forEach(x => x.terminate());
-      };
-    }
+    proofOfWorker = { 
+      postMessage: arg => webWorkers.forEach((x, i) => {
+        x.postMessage({ ...arg, workerId: i })
+      })
+    };
+
+    window.powBotDeterrentReset = () => {
+      window.powBotDeterrentInitDone = false;
+      webWorkers.forEach(x => x.terminate());
+    };
   };
 
   const challenges = Array.from(document.querySelectorAll("[data-pow-bot-deterrent-challenge]"));
   if(challenges.length) {
-    window.botBotDeterrentInit();
+    window.powBotDeterrentInit();
   }
   
   function getCallbackFromGlobalNamespace(callbackString) {

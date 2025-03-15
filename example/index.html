@@ -47,31 +47,6 @@
       document.querySelector("form input[type='submit']").disabled = false;
     };
   </script>
-  <script src="/static/pow-bot-deterrent.js"></script>
-  <!-- <script src='./static/scrypt_wasm.js'></script>
-  <script>
-    const { scrypt } = wasm_bindgen;
-
-    async function run() {
-      console.log("a");
-      await wasm_bindgen();
-
-      console.log(scrypt(hexEncode('password in hex'), hexEncode('password in hex'), 4096, 8, 1, 16))
-    }
-
-    run();
-
-    function hexEncode(s){
-      var hex, i;
-
-      var result = "";
-      for (i=0; i<s.length; i++) {
-          hex = s.charCodeAt(i).toString(16);
-          result += ("000"+hex).slice(-4);
-      }
-      return result
-    }
-
-  </script> -->
+  <script src="/pow-bot-deterrent-static/pow-bot-deterrent.js"></script>
 </body>
 </html>

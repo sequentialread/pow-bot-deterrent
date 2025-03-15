@@ -1,6 +1,10 @@
 #!/bin/bash -e
 
-VERSION="0.0.13"
+tag="0.0.0"
+if git describe --tags --abbrev=0 > /dev/null 2>&1 ; then
+  tag="$(git describe --tags --abbrev=0)"
+fi
+VERSION="$tag-$(git rev-parse --short HEAD)-$(hexdump -n 2 -ve '1/1 "%.2x"' /dev/urandom)"
 
 rm -rf dockerbuild || true
 mkdir dockerbuild
@@ -9,17 +13,17 @@ cp Dockerfile dockerbuild/Dockerfile-amd64
 cp Dockerfile dockerbuild/Dockerfile-arm
 cp Dockerfile dockerbuild/Dockerfile-arm64
 
-sed -E 's|FROM alpine|FROM amd64/alpine|' -i dockerbuild/Dockerfile-amd64
-sed -E 's|FROM alpine|FROM arm32v7/alpine|'   -i dockerbuild/Dockerfile-arm
-sed -E 's|FROM alpine|FROM arm64v8/alpine|' -i dockerbuild/Dockerfile-arm64
+sed -E 's|FROM alpine|FROM --platform=linux/amd64 alpine|' -i dockerbuild/Dockerfile-amd64
+sed -E 's|FROM alpine|FROM  --platform=linux/arm/v7 alpine|'   -i dockerbuild/Dockerfile-arm
+sed -E 's|FROM alpine|FROM --platform=linux/arm64/v8  alpine|' -i dockerbuild/Dockerfile-arm64
 
 sed -E 's/GOARCH=/GOARCH=amd64/' -i dockerbuild/Dockerfile-amd64
 sed -E 's/GOARCH=/GOARCH=arm/'   -i dockerbuild/Dockerfile-arm
 sed -E 's/GOARCH=/GOARCH=arm64/' -i dockerbuild/Dockerfile-arm64
 
-docker build -f dockerbuild/Dockerfile-amd64 -t sequentialread/pow-bot-deterrent:$VERSION-amd64 .
-docker build -f dockerbuild/Dockerfile-arm   -t sequentialread/pow-bot-deterrent:$VERSION-arm .
-docker build -f dockerbuild/Dockerfile-arm64 -t sequentialread/pow-bot-deterrent:$VERSION-arm64 .
+docker build --progress=plain -f dockerbuild/Dockerfile-amd64 -t sequentialread/pow-bot-deterrent:$VERSION-amd64 .
+docker build --progress=plain -f dockerbuild/Dockerfile-arm   -t sequentialread/pow-bot-deterrent:$VERSION-arm .
+docker build --progress=plain -f dockerbuild/Dockerfile-arm64 -t sequentialread/pow-bot-deterrent:$VERSION-arm64 .
 
 docker push sequentialread/pow-bot-deterrent:$VERSION-amd64
 docker push sequentialread/pow-bot-deterrent:$VERSION-arm
