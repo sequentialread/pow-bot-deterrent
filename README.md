@@ -531,9 +531,7 @@ I tried two different implementations of the scrypt hash function, one from the 
 | Framework Laptop AMD 7640U | 16384 | not tested | not tested | ~ 57h/s |
 | Motorolla One 5G Ace | 16384 | not tested | not tested | ~ 35h/s |
 
-I had some trouble getting the WASM module loaded properly inside the WebWorkers. In my production environment, the web application server and the Bot Deterrent server are running on separate subdomains, so I was getting cross-origin security violation issues. 
-
-I ended up embedding the WASM binary inside the WebWorker javascript `proofOfWorker.js` using a boutique binary encoding called [base32768](https://github.com/qntm/base32768). I set up a custom build process for this in the `wasm_build` folder. It even includes the scripts necessary to clone the github.com/MyEtherWallet/scrypt-wasm repo and install the Rust compiler! You are welcome! However, this script does assume that you are running on a Linux computer. I have not tested it outside of Linux.
+I had some trouble getting the WASM module loaded properly inside the WebWorkers. In my production environment, the web application server was using a Content-Security-Policy, which was denying the WebAssembly. Unfortunately there is no way in 2025 for a CSP to allow a specific sha256 hash for a WASM blob, so we still have to set `'wasm-unsafe-eval'` in there 🤮 
 
 
 # What is Proof of Work? Extended Concrete Example
