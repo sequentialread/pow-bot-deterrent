@@ -33,7 +33,7 @@
           <input type="hidden" name="nonce" />
           <input type="submit" disabled="true" value="Add" />
           <div class="bot-deterrent-container" 
-              data-pow-bot-deterrent-url="http://localhost:8080/" 
+              data-pow-bot-deterrent-static-assets-cross-origin-url="{{ .CrossOriginStaticAssetsUrl }}" 
               data-pow-bot-deterrent-challenge="{{ .Challenge }}" 
               data-pow-bot-deterrent-callback="myPowCallback">
          </div>
@@ -47,6 +47,6 @@
       document.querySelector("form input[type='submit']").disabled = false;
     };
   </script>
-  <script src="/pow-bot-deterrent-static/pow-bot-deterrent.js"></script>
+  <script src="{{ .CrossOriginStaticAssetsUrl }}/pow-bot-deterrent.js"></script>
 </body>
 </html>

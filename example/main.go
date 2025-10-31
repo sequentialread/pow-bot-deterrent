@@ -140,13 +140,13 @@ func renderPageTemplate(challenge string) ([]byte, error) {
 	// constructing an instance of an anonymous struct type to contain all the data
 	// that we need to pass to the template
 	pageData := struct {
-		Challenge string
-		Items     []string
-		PowAPIURL string
+		Challenge                  string
+		Items                      []string
+		CrossOriginStaticAssetsUrl string
 	}{
-		Challenge: challenge,
-		Items:     items,
-		PowAPIURL: powAPIURL.String(),
+		Challenge:                  challenge,
+		Items:                      items,
+		CrossOriginStaticAssetsUrl: fmt.Sprintf("%s/pow-bot-deterrent-static", powAPIURL.String()),
 	}
 	var outputBuffer bytes.Buffer
 	err = pageTemplate.Execute(&outputBuffer, pageData)

@@ -1,16 +1,16 @@
 
 // THIS FILE IS GENERATED AUTOMATICALLY
 // Dont edit this file by hand. 
-// Either edit proofOfWorkerStub.js or edit the build located in the wasm_build folder.
+// Either edit proofOfWorkerStub.js or edit the build script located in the wasm_build folder.
 
 
 
 let scrypt;
 let scryptPromise;
-let wasm = undefined;
+let wasm;
 
 let working = false;
-const batchSize = 4;
+const batchSize = 8;
 
 onmessage = function(e) {
   if(e.data.stop) {
@@ -93,6 +93,8 @@ onmessage = function(e) {
         challenge.paralellization, 
         challenge.keyLength
       );
+
+      //console.log(i.toString(16), hashHex);
   
       const endOfHash = hashHex.substring(hashHex.length-challenge.difficulty.length);
       if(endOfHash < smallestHash) {
@@ -124,7 +126,7 @@ onmessage = function(e) {
     }
   };
 
-  if(scrypt) {
+  if(wasm && scrypt) {
     doWork();
   } else {
     scryptPromise.then(() => {
@@ -365,11 +367,11 @@ let wasm_bindgen;
         return __wbg_finalize_init(instance, module);
     }
 
-    /pow-bot-deterrent-static/_bindgen = Object.assign(__wbg_init, { initSync }, __exports);
+    wasm_bindgen = Object.assign(__wbg_init, { initSync }, __exports);
 
 })();
 
 scrypt = wasm_bindgen.scrypt;
-scryptPromise = wasm_bindgen({module_or_path: "/pow-bot-deterrent-static/scrypt.wasm"});
+scryptPromise = wasm_bindgen({module_or_path: "/static/scrypt.wasm"});
 
 

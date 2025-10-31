@@ -17,12 +17,14 @@
 
     const challenges = Array.from(document.querySelectorAll("[data-pow-bot-deterrent-challenge]"));
     const challengesMap = {};
+    let staticAssetsCrossOriginURL = "";
     let staticAssetsPath = trimSlashes("/pow-bot-deterrent-static/")
     let proofOfWorker = { postMessage: () => console.error("error: proofOfWorker was never loaded. ") };
 
     challenges.forEach(element => {
-  
-      if(element.dataset.powBotDeterrentStaticAssetsPath) {
+      if(element.dataset.powBotDeterrentStaticAssetsCrossOriginUrl) {
+        staticAssetsCrossOriginURL = trimSlashes(element.dataset.powBotDeterrentStaticAssetsCrossOriginUrl);
+      } else if(element.dataset.powBotDeterrentStaticAssetsPath) {
         staticAssetsPath = trimSlashes(element.dataset.powBotDeterrentStaticAssetsPath);
       }
 
@@ -58,7 +60,13 @@
         //todo
       }
 
-      let cssIsAlreadyLoaded = document.querySelector(`link[href='/${staticAssetsPath}/pow-bot-deterrent.css']`);
+
+      let cssIsAlreadyLoaded;
+      if(staticAssetsCrossOriginURL) {
+        cssIsAlreadyLoaded = document.querySelector(`link[href='/${staticAssetsPath}/pow-bot-deterrent.css']`);
+      } else {
+        cssIsAlreadyLoaded = document.querySelector(`link[href='${staticAssetsCrossOriginURL}/pow-bot-deterrent.css']`);
+      }
 
       cssIsAlreadyLoaded = cssIsAlreadyLoaded || Array.from(document.styleSheets).some(x => {
         try {
@@ -74,7 +82,7 @@
           "charset": "utf8",
         });
         stylesheet.onload = () => renderProgressInfo(element);
-        stylesheet.setAttribute("href", `${staticAssetsPath}/pow-bot-deterrent.css`);
+        stylesheet.setAttribute("href", `${staticAssetsCrossOriginURL || staticAssetsPath}/pow-bot-deterrent.css`);
       } else {
         renderProgressInfo(element);
       }
@@ -133,10 +141,28 @@
       console.error("error: webworker is not support");
       //todo
     }
-  
+
+    let webWorkerPointerDataURL = null;
+    if(staticAssetsCrossOriginURL != "") {
+      // https://stackoverflow.com/questions/21913673/execute-web-worker-from-different-origin/62914052#62914052
+      const webWorkerCrossOriginURL = `${staticAssetsCrossOriginURL}/proofOfWorker_CrossOrigin.js`;
+
+      webWorkerPointerDataURL = URL.createObjectURL( 
+        new Blob(
+          [ `importScripts( "${ webWorkerCrossOriginURL }" );` ], 
+          { type: "text/javascript" }
+        )
+      );
+    }
+
     let webWorkers;
     webWorkers = [...Array(numberOfWebWorkersToCreate)].map((_, i) => {
-      const webWorker = new Worker(`/${staticAssetsPath}/proofOfWorker.js?v=2`);
+      let webWorker;
+      if(staticAssetsCrossOriginURL != "") {
+        webWorker = new Worker(webWorkerPointerDataURL);
+      } else {
+        webWorker = new Worker(`/${staticAssetsPath}/proofOfWorker.js?v=2`);
+      }
       webWorker.onmessage = function(e) {
         const challengeState = challengesMap[e.data.challenge]
         if(!challengeState) {

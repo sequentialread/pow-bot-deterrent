@@ -1,5 +1,5 @@
 
-FROM golang:1.16-alpine as build
+FROM golang:1.22-alpine as build
 ARG GOARCH=
 ARG GO_BUILD_ARGS=
 

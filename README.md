@@ -187,13 +187,20 @@ Revokes an existing API token.
 In order to set up 💥PoW! Bot Deterrent on your page, you just need to load/include `pow-bot-deterrent.js` and one or more html elements 
 with all 3 of the following properties:
 
-#### `data-pow-bot-deterrent-url`
+#### `data-pow-bot-deterrent-static-assets-cross-origin-url`
 
-This is the base url from which `pow-bot-deterrent.js` will attempt to load additional resources `pow-bot-deterrent.css` and `proofOfWorker.js`.
+*OPTIONAL* This is the base url from which `pow-bot-deterrent.js` will attempt to load additional resources `pow-bot-deterrent.css` and `proofOfWorker_CrossOrigin.js`.
 
-> 💬 *INFO* In our examples, we passed the Bot Deterrent server URL down to the HTML page and used it as the value for this property.
-However, that's not required. The HTML page doesn't need to talk to the Bot Deterrent server at all, it just needs to know where it can
-download the `pow-bot-deterrent.css` and `proofOfWorker.js` files. There is nothing stopping you from simply hosting those files on your own server or CDN and placing the corresponding URL into the `data-pow-bot-deterrent-url` property.
+Example value: `https://bot-deterrent.example.com/static/`
+
+> 💬 *INFO* The HTML page doesn't need to talk to the Bot Deterrent server at all, it just needs to know where it can
+download the `pow-bot-deterrent.css` and `proofOfWorker_CrossOrigin.js` files.  Doing this cross-origin is simpler and easier, but it can cause issues with website's [Content Security Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP). So if you care about that, try using `data-pow-bot-deterrent-static-assets-path` instead.
+
+#### `data-pow-bot-deterrent-static-assets-path`
+
+A path (on the same origin as your site) where the `pow-bot-deterrent.css`, `proofOfWorker.js`, and `scrypt.wasm` files can be found.
+
+*OPTIONAL*, default value is `/pow-bot-deterrent-static/`
 
 #### `data-pow-bot-deterrent-challenge`
 
@@ -470,7 +477,7 @@ There are two main important parts, the form and the javascript at the bottom:
           <input type="hidden" name="nonce" />
           <input type="submit" disabled="true" value="Add" />
           <div class="bot-deterrent-container" 
-              data-pow-bot-deterrent-url="{{ .PowAPIURL }}" 
+              data-pow-bot-deterrent-static-assets-cross-origin-url="{{ .CrossOriginStaticAssetsUrl }}" 
               data-pow-bot-deterrent-challenge="{{ .Challenge }}" 
               data-pow-bot-deterrent-callback="myPowCallback">
          </div>
@@ -484,7 +491,7 @@ There are two main important parts, the form and the javascript at the bottom:
       document.querySelector("form input[type='submit']").disabled = false;
     };
   </script>
-  <script src="{{ .PowAPIURL }}/pow-bot-deterrent-static/pow-bot-deterrent.js"></script>
+  <script src="{{ .CrossOriginStaticAssetsUrl }}/pow-bot-deterrent.js"></script>
 ```
 
 ⚠️ **NOTE** that the element with the `pow-bot-deterrent` data properties is placed **inside a form element**. This is required because the bot deterrent needs to know which input elements it should trigger on. We only want it to trigger when the user actually intends to submit the form; otherwise we are wasting a lot of their CPU cycles for no reason!
@@ -492,7 +499,7 @@ There are two main important parts, the form and the javascript at the bottom:
 > 💬 *INFO* The double curly brace elements like `{{ .Challenge }}` are Golang string template interpolations.  They are specific to the example app & how it renders the page.
 
 When the page loads, the `pow-bot-deterrent.js` script will execute, querying the page for all elements with the `data-pow-bot-deterrent-challenge`
-property. It will then validate each element to make sure it also has the `data-pow-bot-deterrent-url` and `data-pow-bot-deterrent-callback` properties. For each element it found, it will locate the `<form>` parent/grandparent enclosing the element. If none are found, it will throw an error. Otherwise, it will set up an event listener on every input element inside that form, so that as soon as the user starts filling out the form, the bot deterrent display will pop up and the Proof of Work will begin. 
+property. It will then validate each element to make sure it also has the `data-pow-bot-deterrent-static-assets-cross-origin-url` and `data-pow-bot-deterrent-callback` properties. For each element it found, it will locate the `<form>` parent/grandparent enclosing the element. If none are found, it will throw an error. Otherwise, it will set up an event listener on every input element inside that form, so that as soon as the user starts filling out the form, the bot deterrent display will pop up and the Proof of Work will begin. 
 
 When the Proof of Work finishes, `pow-bot-deterrent.js` will call the function specified by `data-pow-bot-deterrent-callback`, passing the winning nonce as the first argument, or throw an error if that function is not defined.
 
