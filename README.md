@@ -317,7 +317,7 @@ function MyComponent({botDeterrentURL, challenge}) {
           <input type="text" name="item" />
           <input type="submit" disabled={nonce === ""} value="Add" />
           <div className="bot-deterrent-container" 
-              data-pow-bot-deterrent-url={botDeterrentURL} 
+              data-pow-bot-deterrent-static-assets-cross-origin-url={`${botDeterrentURL}/static`} 
               data-pow-bot-deterrent-challenge={challenge} 
               data-pow-bot-deterrent-callback={uniqueCallback}>
          </div>
