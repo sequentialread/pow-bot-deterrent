@@ -31,15 +31,6 @@ type Config struct {
 	DeprecateAfterBatches  int    `json:"deprecate_after_batches"`
 	ScryptCPUAndMemoryCost int    `json:"scrypt_cpu_and_memory_cost"`
 	AdminAPIToken          string `json:"admin_api_token"`
-
-	EmailAddress string `json:"email_address"`
-	// port 993 (IMAPS)
-	// port 143 (STARTTLS) [deprecated!]
-	ImapHost       string `json:"imap_host"`
-	ImapPort       int    `json:"imap_port"`
-	ImapEncryption string `json:"imap_encryption"`
-	ImapUsername   string `json:"imap_username"`
-	ImapPassword   string `json:"imap_password"`
 }
 
 // https://en.wikipedia.org/wiki/Scrypt
@@ -504,27 +495,6 @@ func readConfiguration() string {
 	}
 	if config.AdminAPIToken == "" {
 		errors = append(errors, "the POW_BOT_DETERRENT_ADMIN_API_TOKEN environment variable is required")
-	}
-
-	if config.EmailAddress != "" {
-		if config.ImapHost == "" {
-			config.ImapHost = "localhost"
-		}
-		if config.ImapPort == 0 {
-			config.ImapPort = 993
-		}
-		if config.ImapEncryption == "" {
-			config.ImapEncryption = "SMTPS"
-		}
-		if config.ImapEncryption != "STARTTLS" && config.ImapEncryption != "IMAPS" && config.ImapEncryption != "NONE" {
-			errors = append(errors, fmt.Sprintf("ImapEncryption '%s' must be IMAPS, STARTTLS or NONE", config.ImapEncryption))
-		}
-		if config.ImapUsername == "" {
-			errors = append(errors, "ImapUsername is required")
-		}
-		if config.ImapPassword == "" {
-			errors = append(errors, "ImapPassword is required")
-		}
 	}
 
 	if len(errors) > 0 {
