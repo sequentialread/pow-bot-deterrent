@@ -2,7 +2,10 @@
 
 A proof-of-work based bot deterrent. Lightweight, self-hosted and copyleft licensed.
 
+
 ![screencast](readme/screencast.gif)
+
+## NEW: Looking to block AI scraper bots from hammering your site? See: https://git.sequentialread.com/forest/pow-bot-deterrent-rp (similar to Anubis)
 
 Compared to mainstream captchas like recaptcha, hcaptcha, friendlycaptcha, this one is better for a few reasons:
 
@@ -17,7 +20,6 @@ Compared to other proof of work bot deterrents like mCaptcha, I believe that thi
       - 1. Fundamentally harder to accelerate.
       - 1. More likely to stop bots; a basic headless browser with JS execution might not be enough.
   - It is optimized for production use; its API minimizes the number of requests and amount of latency that you have to add to your system.
-
 
 ### Table of Contents
 
